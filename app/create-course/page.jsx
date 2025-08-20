@@ -2,6 +2,7 @@
 import React from "react";
 import { useState } from "react";
 import uuid4 from "uuid4";
+import { useRouter } from "next/navigation";
 import {
   HiClipboardDocumentCheck,
   HiLightBulb,
@@ -16,7 +17,7 @@ import { useEffect, useContext } from "react";
 import { GenerateCourseLayout_AI } from "../../configs/AIModel";
 import LoadingDialog from "./_components/LoadingDialog";
 import { useUser } from "@clerk/nextjs";
-import { db } from "../../configs/db";
+// import { db } from "../../configs/db";
 // import { CourseList } from "../../configs/schema";
 import { CourseList } from "../../configs/schema.jsx"; // Adjust the import path if needed
 
@@ -41,7 +42,9 @@ const CreateCourse = () => {
   const { userCourseInput, setUserCourseInput } = useContext(UserInputContext);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const {user} = useUser();
+  const { user } = useUser();
+  const router = useRouter();
+
 
   useEffect(() => {
     console.log("User Course Input:", userCourseInput);
@@ -112,76 +115,109 @@ Create a course layout with the following details:
 
     console.log("Generating Course Layout with prompt:", BASIC_PROMPT);
 
-try {
-  const result = await GenerateCourseLayout_AI.sendMessage(BASIC_PROMPT);
-  const text = result.response?.text();
+    try {
+      const result = await GenerateCourseLayout_AI.sendMessage(BASIC_PROMPT);
+      const text = result.response?.text();
 
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch (err) {
-    console.warn("⚠️ Model returned invalid JSON, raw text was:", text);
-    const match = text.match(/\{[\s\S]*\}/);
-    parsed = match ? JSON.parse(match[0]) : null;
-  }
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (err) {
+        console.warn("⚠️ Model returned invalid JSON, raw text was:", text);
+        const match = text.match(/\{[\s\S]*\}/);
+        parsed = match ? JSON.parse(match[0]) : null;
+      }
 
-  if (parsed) {
-    console.log("✅ Parsed Course Layout:", parsed);
-    await SaveCourseLayoutInDb(parsed);
-  } else {
-    console.warn("⚠️ Parsed course layout is null, skipping DB save.");
-  }
-} catch (err) {
-  console.error("❌ Error generating course layout:", err);
-} finally {
-  setLoading(false);
-}
-
+      if (parsed) {
+        console.log("✅ Parsed Course Layout:", parsed);
+        await SaveCourseLayoutInDb(parsed);
+      } else {
+        console.warn("⚠️ Parsed course layout is null, skipping DB save.");
+      }
+    } catch (err) {
+      console.error("❌ Error generating course layout:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const SaveCourseLayoutInDb = async (courseLayout) => {
-  if (!courseLayout) return; // skip if invalid
-  try {
-    var id = uuid4();
-    setLoading(true);
-    const result = await db.insert(CourseList).values({
-      courseId: id,
-      name: userCourseInput?.topic,
-      category: userCourseInput?.category,
-      level: userCourseInput?.difficulty,
-      courseOutput: courseLayout,
-      createdBy: user?.primaryEmailAddress?.emailAddress,
+    if (!courseLayout) {
+      console.warn("SaveCourseLayoutInDb called with empty courseLayout");
+      return;
+    }
+
+    const courseId = uuid4(); // generate ID on frontend
+    console.log("Generated courseId:", courseId);
+    console.log("Sending course data:", {
+      courseId,
+      topic: userCourseInput.topic,
+      category: userCourseInput.category,
+      difficulty: userCourseInput.difficulty,
+      courseLayout,
+      email: user?.primaryEmailAddress?.emailAddress,
       userName: user?.fullName,
-      userProfileImage: user?.imageUrl,
+      userImage: user?.imageUrl,
     });
-    console.log("Course saved in DB:", result);
-  } catch (err) {
-    console.error("❌ Error saving course to DB:", err);
-  } finally {
-    setLoading(false);
-  }
-};
 
+    try {
+      setLoading(true);
+      const response = await fetch("/api/course", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId,
+          topic: userCourseInput.topic,
+          category: userCourseInput.category,
+          difficulty: userCourseInput.difficulty,
+          courseLayout,
+          email: user?.primaryEmailAddress?.emailAddress,
+          userName: user?.fullName,
+          userImage: user?.imageUrl,
+        }),
+      });
 
+      console.log("Fetch response status:", response.status);
+      console.log("Fetch response headers:", [...response.headers]);
 
-//   const SaveCourseLayoutInDb=async(courseLayout)=>{
-//     var id = uuid4();
-//     setLoading(true);
-//     const result=await db.insert(CourseList).values({
-//       courseId: id,
-//       name: userCourseInput?.topic,
-//       category: userCourseInput?.category,
-//       level: userCourseInput?.difficulty,
-//       courseOutput: courseLayout,
-//       createdBy: user?.primaryEmailAddress?.emailAddress,
-//       userName: user?.fullName,
-//       userProfileImage: user?.imageUrl,
-//   })
-//   console.log("Course saved in DB:", result);
-//   setLoading(false);
-// }
+      const data = await response.json();
+      console.log("Course saved in DB, response data:", data);
 
+      if (data.success) {
+        console.log(
+          "Redirecting to course page:",
+          `/create-course/${courseId}`
+        );
+        router.replace(`/create-course/${courseId}`); // redirect using frontend-generated ID
+      } else {
+        console.error(
+          "Failed to save course, server returned success: false",
+          data
+        );
+      }
+    } catch (err) {
+      console.error("Error during fetch to /api/course:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  //   const SaveCourseLayoutInDb=async(courseLayout)=>{
+  //     var id = uuid4();
+  //     setLoading(true);
+  //     const result=await db.insert(CourseList).values({
+  //       courseId: id,
+  //       name: userCourseInput?.topic,
+  //       category: userCourseInput?.category,
+  //       level: userCourseInput?.difficulty,
+  //       courseOutput: courseLayout,
+  //       createdBy: user?.primaryEmailAddress?.emailAddress,
+  //       userName: user?.fullName,
+  //       userProfileImage: user?.imageUrl,
+  //   })
+  //   console.log("Course saved in DB:", result);
+  //   setLoading(false);
+  // }
 
   return (
     <div>
