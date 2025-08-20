@@ -1,11 +1,42 @@
-import React from 'react'
+"use client"
+import React, { useEffect, useState } from "react"
+import CourseBasicInfo from "./_components/CourseBasicInfo"
+import CourseDetail from "./_components/CourseDetail"
 
-const CourseLayout = () => {
+const CoursePage = ({ params }) => {
+  const [course, setCourse] = useState(null)
+
+  useEffect(() => {
+    const fetchCourse = async () => {
+      try {
+        const res = await fetch(`/api/course/${params.courseId}`)
+        const data = await res.json()
+        console.log("Fetched course:", data)
+        setCourse(data[0]) // because query returns array
+      } catch (err) {
+        console.error("Error fetching course:", err)
+      }
+    }
+
+    fetchCourse()
+  }, [params.courseId])
+
+  if (!course) {
+    return <div>Loading course...</div>
+  }
+
   return (
-    <div>
-      
+    <div className="mt-10 px-7 md:px-20 lg:px-44">
+      <h2 className="font-bold text-center text-2xl">Course Layout</h2>
+      <CourseBasicInfo course={course} />
+      <CourseDetail course={course}/>
+
+
+
+      <pre>{JSON.stringify(course.courseLayout, null, 2)}</pre>
     </div>
   )
 }
 
-export default CourseLayout
+export default CoursePage
+
