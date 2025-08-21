@@ -45,7 +45,6 @@ const CreateCourse = () => {
   const { user } = useUser();
   const router = useRouter();
 
-
   useEffect(() => {
     console.log("User Course Input:", userCourseInput);
   }, [userCourseInput]);
@@ -107,7 +106,8 @@ Create a course layout with the following details:
       "title": "...",
       "description": "...",
       "recommendedReadings": ["...", "..."],
-      "videoTitle": "..."
+      "videoTitle": "...",
+      "duration":"..."
     }
   ]
 }
