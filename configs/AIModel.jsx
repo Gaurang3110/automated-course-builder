@@ -40,6 +40,54 @@ export const GenerateCourseLayout_AI = model.startChat({
   ],
 });
 
+// const PROMPT =
+//   "Explain the concept in Detail on Topic : " +
+//   course?.name +
+//   ", Chapter: " +
+//   chapter?.title +
+//   " in JSON Format with list of array with fields: " +
+//   "title, explanation of given chapter in detail, code example (HTML format) if applicable";
+
+  export const GenerateChapterContent_AI = (courseName, chapterTitle) => {
+  const PROMPT = `Explain the concept in Detail on Topic: ${courseName}, Chapter: ${chapterTitle} in JSON Format with array objects containing fields: title, description, and code example (HTML format) if applicable.`;
+
+  return model.startChat({
+    generationConfig,
+    history: [
+      {
+        role: "user",
+        parts: [{ text: PROMPT }],
+      },
+      {
+        role: "model",
+        parts: [
+          { text: "Sure! Here’s a JSON structure for this chapter content..." },
+        ],
+      },
+    ],
+  });
+};
+
+// export const GenerateChapterContent_AI = model.startChat({
+//   generationConfig,
+//   history: [
+//     {
+//       role: "user",
+//       parts: [{ text: PROMPT }],
+//     },
+//     {
+//       role: "model",
+//       parts: [
+//         {
+//           text:
+//             "Sure! Here’s a JSON structure for this chapter content with fields: title, explanation, and code example if relevant...",
+//         },
+//       ],
+//     },
+//   ],
+// });
+
+
 // async function main() {
 //   try {
 //     // Continue the chat
